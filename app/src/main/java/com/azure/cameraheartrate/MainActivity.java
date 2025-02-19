@@ -71,6 +71,7 @@ public class MainActivity extends AppCompatActivity {
         super.onDestroy();
 
         CameraHeartRateManager.getInstance().removeCameraHeartRateListener(cameraHeartRateListener);
+        CameraHeartRateManager.getInstance().unInit();
     }
 
     @OptIn(markerClass = ExperimentalGetImage.class)
