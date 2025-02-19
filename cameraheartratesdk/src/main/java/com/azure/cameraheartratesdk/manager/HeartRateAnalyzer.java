@@ -23,6 +23,10 @@ import java.util.Set;
 
 class HeartRateAnalyzer implements ImageAnalysis.Analyzer {
     private long lastAnalyzedTimestamp = 0L;
+    //上次得到的心率
+    private int lastHeartRate = 0;
+    //前项心率占比，平滑过渡心率计算结果
+    private float heartRateSmooth = 0.5f;
     private final List<Long> frameTimestamps = new ArrayList<>();
     private final List<Double> redIntensity = new ArrayList<>();
     Set<CameraHeartRateListener> cameraHeartRateListenerSet = new HashSet<>();
@@ -105,8 +109,37 @@ class HeartRateAnalyzer implements ImageAnalysis.Analyzer {
             averageDuration += duration;
         }
         averageDuration /= durations.size();
+        int heartRateNew = (int) (60000 / averageDuration);
 
-        return (int) (60000 / averageDuration);
+        // 如果 lastHeartRate 不在正常范围内
+        if (!isNormalRange(lastHeartRate)){
+            // 如果 heartRateNew 在正常范围内，则更新并返回
+            if (isNormalRange(heartRateNew)){
+                lastHeartRate = heartRateNew;
+                return heartRateNew;
+            } else {
+                // lastHeartRate和heartRateNew都不在正常范围，返回0
+                return 0;
+            }
+        } else {
+            // 如果 lastHeartRate 在正常范围内
+            if (isNormalRange(heartRateNew)){
+                // 平滑处理 heartRateNew，并返回
+                heartRateNew = (int) (heartRateNew * (1 - heartRateSmooth) + lastHeartRate * heartRateSmooth);
+                lastHeartRate = heartRateNew;
+                return heartRateNew;
+            } else {
+                // 如果 heartRateNew 不在正常范围内，返回上一个正常的心率
+                int hr = lastHeartRate;
+                lastHeartRate = heartRateNew;
+                return hr;
+            }
+        }
+
+    }
+
+    private boolean isNormalRange(int heartRate){
+        return heartRate > 50 && heartRate < 200;
     }
 
     private List<Integer> findPeaks(List<Double> intensities) {
