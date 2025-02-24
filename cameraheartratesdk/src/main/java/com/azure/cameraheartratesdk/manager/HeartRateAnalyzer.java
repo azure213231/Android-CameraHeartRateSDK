@@ -14,6 +14,8 @@ import androidx.camera.core.ImageProxy;
 
 import com.azure.cameraheartratesdk.listener.CameraHeartRateListener;
 
+import org.json.JSONArray;
+
 import java.io.ByteArrayOutputStream;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
@@ -32,7 +34,8 @@ class HeartRateAnalyzer implements ImageAnalysis.Analyzer {
     private final List<Long> frameTimestamps = new ArrayList<>();
     private final List<Double> redIntensity = new ArrayList<>();
     Set<CameraHeartRateListener> cameraHeartRateListenerSet = new HashSet<>();
-    List<Long> RRList = new ArrayList<>();
+    List<Long> heartRRList = new ArrayList<>();
+    List<Long> hrvRRList = new ArrayList<>();
 
     @OptIn(markerClass = ExperimentalGetImage.class)
     @Override
@@ -54,8 +57,11 @@ class HeartRateAnalyzer implements ImageAnalysis.Analyzer {
                 Set<CameraHeartRateListener> cameraHeartRateListenerSet1 = cloneHeartRateListenerSet();
                 for (CameraHeartRateListener cameraHeartRateListener : cameraHeartRateListenerSet1){
                     cameraHeartRateListener.onHeartRate(0);
+                    cameraHeartRateListener.onSDNN(0);
+                    cameraHeartRateListener.onRMSSD(0);
                     cameraHeartRateListener.onFingerDetected(false);
-                    RRList.clear();
+                    heartRRList.clear();
+                    hrvRRList.clear();
                 }
                 image.close();
                 return;
@@ -67,13 +73,20 @@ class HeartRateAnalyzer implements ImageAnalysis.Analyzer {
 
             if (frameTimestamps.size() > 30) {
                 List<Long> newRRList = calculateRR(frameTimestamps, redIntensity);
-                addRRElements(RRList, newRRList, 10);
-                List<Long> filterRRByChange = filterRRByChange(RRList, 0.3);
-                int heartRate = calculateHeartRate(filterRRByChange);
-//                int rmssd = calculateRMSSD(filterRRByChange);
+                addRRElements(heartRRList, newRRList, 10);
+                addRRElements(hrvRRList, newRRList, 30);
+                List<Long> heartFilterRRByChange = filterRRByChange(heartRRList, 0.3);
+                List<Long> hrvFilterRRByChange = filterRRByChange(hrvRRList, 0.3);
+                Log.i("TAG", "heartFilterRRByChange: " + heartFilterRRByChange + ", hrvFilterRRByChange: " + hrvFilterRRByChange);
+
+                int heartRate = calculateHeartRate(heartFilterRRByChange);
+                int sdnn = calculateSDNN(hrvFilterRRByChange);
+                int rmssd = calculateRMSSD(hrvFilterRRByChange);
                 Set<CameraHeartRateListener> cameraHeartRateListenerSet1 = cloneHeartRateListenerSet();
                 for (CameraHeartRateListener cameraHeartRateListener : cameraHeartRateListenerSet1){
                     cameraHeartRateListener.onHeartRate(heartRate);
+                    cameraHeartRateListener.onSDNN(sdnn);
+                    cameraHeartRateListener.onRMSSD(rmssd);
                     cameraHeartRateListener.onFingerDetected(true);
                 }
                 frameTimestamps.clear();
@@ -128,10 +141,6 @@ class HeartRateAnalyzer implements ImageAnalysis.Analyzer {
         int heartRateNew = (int) (60 * 1000 / averageDuration);
 
         return heartRateNew;
-    }
-
-    private boolean isNormalRange(int heartRate){
-        return heartRate > 50 && heartRate < 200;
     }
 
     private List<Integer> findPeaks(List<Double> intensities) {
@@ -214,7 +223,7 @@ class HeartRateAnalyzer implements ImageAnalysis.Analyzer {
 
         double redRatio = (double) redPixelCount / totalPixelCount;
         Log.d("HeartRateAnalyzer", "Red pixel ratio: " + redRatio);
-        return redRatio > 0.8; // Adjust this threshold as necessary
+        return redRatio > 0.95; // Adjust this threshold as necessary
     }
 
     public void addHeartRateListener(CameraHeartRateListener cameraHeartRateListener){
@@ -298,14 +307,14 @@ class HeartRateAnalyzer implements ImageAnalysis.Analyzer {
             Long medianRR = median(filteredRR);
 
             // 计算相邻 R-R 之间的变化率
-            List<Long> rrDiff = new ArrayList<>();
+            List<Float> rrDiff = new ArrayList<>();
             // 先计算首元素与中位数的相对差
-            Long firstDiff = Math.abs(filteredRR.get(0) - medianRR) / medianRR;
+            float firstDiff = (float) Math.abs(filteredRR.get(0) - medianRR) / medianRR;
             rrDiff.add(firstDiff);
 
             // 对于后续元素，计算相邻元素的变化率
             for (int i = 1; i < filteredRR.size(); i++) {
-                Long diff = Math.abs(filteredRR.get(i) - filteredRR.get(i - 1)) / filteredRR.get(i - 1);
+                float diff = (float) Math.abs(filteredRR.get(i) - filteredRR.get(i - 1)) / filteredRR.get(i - 1);
                 rrDiff.add(diff);
             }
 
@@ -344,54 +353,54 @@ class HeartRateAnalyzer implements ImageAnalysis.Analyzer {
         }
     }
 
-//    /**
-//     * 计算 SDNN，即所有心跳间期（NN间期）的标准差
-//     * @param rrIntervals 心跳间隔数组，单位：毫秒
-//     * @return SDNN 值（毫秒）
-//     */
-//    public static double calculateSDNN(List<Long> rrIntervals) {
-//        if (rrIntervals == null || rrIntervals.isEmpty()) {
-//            return 0;
-//        }
-//
-//        // 计算平均值
-//        double sum = 0;
-//        for (Long rr : rrIntervals) {
-//            sum += rr;
-//        }
-//        double mean = sum / rrIntervals.size();
-//
-//        // 计算方差
-//        double variance = 0;
-//        for (Long rr : rrIntervals) {
-//            variance += Math.pow(rr - mean, 2);
-//        }
-//        variance = variance / rrIntervals.size();
-//
-//        // 返回标准差
-//        return Math.sqrt(variance);
-//    }
-//
-//    /**
-//     * 计算 RMSSD，即相邻心跳间隔差的均方根
-//     * @param rrIntervals 心跳间隔数组，单位：毫秒
-//     * @return RMSSD 值（毫秒）
-//     */
-//    public static double calculateRMSSD(List<Long> rrIntervals) {
-//        if (rrIntervals == null || rrIntervals.size() < 2) {
-//            return 0;
-//        }
-//
-//        double sumSquaredDiffs = 0;
-//        // 计算连续间隔差的平方和
-//        for (int i = 1; i < rrIntervals.size(); i++) {
-//            long diff = rrIntervals.get(i) - rrIntervals.get(i - 1);
-//            sumSquaredDiffs += diff * diff;
-//        }
-//
-//        // 计算均值，然后取平方根
-//        double meanSquaredDiff = sumSquaredDiffs / (rrIntervals.size() - 1);
-//        return Math.sqrt(meanSquaredDiff);
-//    }
+    /**
+     * 计算 SDNN，即所有心跳间期（NN间期）的标准差
+     * @param rrIntervals 心跳间隔数组，单位：毫秒
+     * @return SDNN 值（毫秒）
+     */
+    public static int calculateSDNN(List<Long> rrIntervals) {
+        if (rrIntervals == null || rrIntervals.isEmpty()) {
+            return 0;
+        }
+
+        // 计算平均值
+        double sum = 0;
+        for (Long rr : rrIntervals) {
+            sum += rr;
+        }
+        double mean = sum / rrIntervals.size();
+
+        // 计算方差
+        double variance = 0;
+        for (Long rr : rrIntervals) {
+            variance += Math.pow(rr - mean, 2);
+        }
+        variance = variance / rrIntervals.size();
+
+        // 返回标准差
+        return (int) Math.sqrt(variance);
+    }
+
+    /**
+     * 计算 RMSSD，即相邻心跳间隔差的均方根
+     * @param rrIntervals 心跳间隔数组，单位：毫秒
+     * @return RMSSD 值（毫秒）
+     */
+    public static int calculateRMSSD(List<Long> rrIntervals) {
+        if (rrIntervals == null || rrIntervals.size() < 2) {
+            return 0;
+        }
+
+        double sumSquaredDiffs = 0;
+        // 计算连续间隔差的平方和
+        for (int i = 1; i < rrIntervals.size(); i++) {
+            long diff = rrIntervals.get(i) - rrIntervals.get(i - 1);
+            sumSquaredDiffs += diff * diff;
+        }
+
+        // 计算均值，然后取平方根
+        double meanSquaredDiff = sumSquaredDiffs / (rrIntervals.size() - 1);
+        return (int) Math.sqrt(meanSquaredDiff);
+    }
 }
 

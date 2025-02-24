@@ -29,21 +29,34 @@ import java.util.concurrent.ExecutionException;
 public class MainActivity extends AppCompatActivity {
 
     private PreviewView previewView;
+    private TextView fingerDetectedTextView;
     private TextView heartRateTextView;
+    private TextView sdnnTextView;
+    private TextView rmssdTextView;
 
     private CameraHeartRateListener cameraHeartRateListener = new CameraHeartRateListener() {
         @Override
-        public void onHeartRate(int heartRate) {
-            Log.i("TAG", "startCamera: " + heartRate);
-            heartRateTextView.setText(String.valueOf(heartRate));
+        public void onFingerDetected(boolean fingerDetected) {
+            String text = "fingerDetected: " + fingerDetected;
+            fingerDetectedTextView.setText(text);
         }
 
         @Override
-        public void onFingerDetected(boolean isDetected) {
-            Log.i("TAG", "startCamera: " + isDetected);
-            if (!isDetected) {
-                heartRateTextView.setText(String.valueOf(isDetected));
-            }
+        public void onHeartRate(int heartRate) {
+            String text = "heartRate: " + heartRate;
+            heartRateTextView.setText(text);
+        }
+
+        @Override
+        public void onSDNN(int sdnn) {
+            String text = "sdnn: " + sdnn;
+            sdnnTextView.setText(text);
+        }
+
+        @Override
+        public void onRMSSD(int rmssd) {
+            String text = "rmssd: " + rmssd;
+            rmssdTextView.setText(text);
         }
     };
 
@@ -59,7 +72,10 @@ public class MainActivity extends AppCompatActivity {
         });
 
         previewView = findViewById(R.id.previewView);
+        fingerDetectedTextView  = findViewById(R.id.finger_detected);
         heartRateTextView  = findViewById(R.id.heart_rate);
+        sdnnTextView  = findViewById(R.id.sdnn);
+        rmssdTextView  = findViewById(R.id.rmssd);
         CameraHeartRateManager.getInstance().init();
         CameraHeartRateManager.getInstance().addCameraHeartRateListener(cameraHeartRateListener);
 
