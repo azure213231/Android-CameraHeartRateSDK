@@ -62,7 +62,8 @@ class HeartRateAnalyzer implements ImageAnalysis.Analyzer {
             frameTimestamps.add(currentTimestamp);
 
             if (frameTimestamps.size() > 30) {
-                int heartRate = calculateHeartRate(frameTimestamps, redIntensity);
+                List<Long> heartRateRR = calculateRR(frameTimestamps, redIntensity);
+                int heartRate = calculateHeartRate(heartRateRR);
                 Set<CameraHeartRateListener> cameraHeartRateListenerSet1 = cloneHeartRateListenerSet();
                 for (CameraHeartRateListener cameraHeartRateListener : cameraHeartRateListenerSet1){
                     cameraHeartRateListener.onHeartRate(heartRate);
@@ -94,14 +95,22 @@ class HeartRateAnalyzer implements ImageAnalysis.Analyzer {
         return pixelCount > 0 ? redSum / pixelCount : 0.0;
     }
 
-    private int calculateHeartRate(List<Long> timestamps, List<Double> intensities) {
+    private List<Long> calculateRR(List<Long> timestamps, List<Double> intensities){
         List<Double> smoothedIntensities = smoothData(intensities, 5);
         List<Integer> peaks = findPeaks(smoothedIntensities);
-        if (peaks.size() < 2) return 0;
+        if (peaks.size() < 2) return null;
 
         List<Long> durations = new ArrayList<>();
         for (int i = 0; i < peaks.size() - 1; i++) {
             durations.add(timestamps.get(peaks.get(i + 1)) - timestamps.get(peaks.get(i)));
+        }
+
+        return durations;
+    }
+
+    private int calculateHeartRate(List<Long> durations) {
+        if (durations == null){
+            return 0;
         }
 
         double averageDuration = 0;
@@ -109,7 +118,7 @@ class HeartRateAnalyzer implements ImageAnalysis.Analyzer {
             averageDuration += duration;
         }
         averageDuration /= durations.size();
-        int heartRateNew = (int) (60000 / averageDuration);
+        int heartRateNew = (int) (60 * 1000 / averageDuration);
 
         // 如果 lastHeartRate 不在正常范围内
         if (!isNormalRange(lastHeartRate)){
