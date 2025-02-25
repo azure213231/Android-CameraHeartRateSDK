@@ -19,3 +19,7 @@
 # If you keep the line number information, uncomment this to
 # hide the original source file name.
 #-renamesourcefileattribute SourceFile
+
+# 保留 com.azure.cameraheartratesdk.listener 包下的所有类和方法，防止混淆
+-keep interface com.azure.cameraheartratesdk.listener.** { *; }
+-keep class com.azure.cameraheartratesdk.manager.** { *; }

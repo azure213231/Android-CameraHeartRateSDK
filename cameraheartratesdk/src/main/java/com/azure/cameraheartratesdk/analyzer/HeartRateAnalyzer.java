@@ -1,4 +1,4 @@
-package com.azure.cameraheartratesdk.manager;
+package com.azure.cameraheartratesdk.analyzer;
 
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
@@ -14,8 +14,6 @@ import androidx.camera.core.ImageProxy;
 
 import com.azure.cameraheartratesdk.listener.CameraHeartRateListener;
 
-import org.json.JSONArray;
-
 import java.io.ByteArrayOutputStream;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
@@ -25,7 +23,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 
-class HeartRateAnalyzer implements ImageAnalysis.Analyzer {
+public class HeartRateAnalyzer implements ImageAnalysis.Analyzer {
     private long lastAnalyzedTimestamp = 0L;
     //上次得到的心率
     private int lastHeartRate = 0;
@@ -60,6 +58,7 @@ class HeartRateAnalyzer implements ImageAnalysis.Analyzer {
                     cameraHeartRateListener.onSDNN(0);
                     cameraHeartRateListener.onRMSSD(0);
                     cameraHeartRateListener.onFingerDetected(false);
+                    cameraHeartRateListener.onEffectiveValueRate(0.0f,0.0f);
                     heartRRList.clear();
                     hrvRRList.clear();
                 }
@@ -74,11 +73,17 @@ class HeartRateAnalyzer implements ImageAnalysis.Analyzer {
             if (frameTimestamps.size() > 30) {
                 List<Long> newRRList = calculateRR(frameTimestamps, redIntensity);
                 addRRElements(heartRRList, newRRList, 10);
-                addRRElements(hrvRRList, newRRList, 30);
+                addRRElements(hrvRRList, newRRList, 20);
                 List<Long> heartFilterRRByChange = filterRRByChange(heartRRList, 0.3);
                 List<Long> hrvFilterRRByChange = filterRRByChange(hrvRRList, 0.3);
                 Log.i("TAG", "heartFilterRRByChange: " + heartFilterRRByChange + ", hrvFilterRRByChange: " + hrvFilterRRByChange);
 
+                float hrEffectiveValueRate = 0.0f;
+                float hrvEffectiveValueRate = 0.0f;
+                if (heartRRList.size() >= 5 &&  hrvRRList.size() >= 5){
+                    hrEffectiveValueRate = Math.round((float) heartFilterRRByChange.size() / heartRRList.size() * 100) / 100.0f;
+                    hrvEffectiveValueRate = Math.round((float) hrvFilterRRByChange.size() / hrvRRList.size() * 100) / 100.0f;
+                }
                 int heartRate = calculateHeartRate(heartFilterRRByChange);
                 int sdnn = calculateSDNN(hrvFilterRRByChange);
                 int rmssd = calculateRMSSD(hrvFilterRRByChange);
@@ -88,6 +93,7 @@ class HeartRateAnalyzer implements ImageAnalysis.Analyzer {
                     cameraHeartRateListener.onSDNN(sdnn);
                     cameraHeartRateListener.onRMSSD(rmssd);
                     cameraHeartRateListener.onFingerDetected(true);
+                    cameraHeartRateListener.onEffectiveValueRate(hrEffectiveValueRate,hrvEffectiveValueRate);
                 }
                 frameTimestamps.clear();
                 redIntensity.clear();
@@ -168,7 +174,7 @@ class HeartRateAnalyzer implements ImageAnalysis.Analyzer {
         return smoothedIntensities;
     }
 
-    public static Bitmap yuvToRgb(Image image) {
+    private static Bitmap yuvToRgb(Image image) {
         if (image == null) return null;
 
         byte[] nv21 = yuv420ToNv21(image);  // 将 YUV420 数据转换为 NV21 格式
@@ -247,7 +253,7 @@ class HeartRateAnalyzer implements ImageAnalysis.Analyzer {
      * @param original 原有数据列表
      * @param newElements 新添加的数据列表
      */
-    public static void addRRElements(List<Long> original, List<Long> newElements, Integer capacity) {
+    private static void addRRElements(List<Long> original, List<Long> newElements, Integer capacity) {
         if (newElements != null){
             int totalSize = original.size() + newElements.size();
 
@@ -279,7 +285,7 @@ class HeartRateAnalyzer implements ImageAnalysis.Analyzer {
      * @param changeThreshold 变化率阈值，默认 0.2
      * @return 过滤后的 R-R 间期列表
      */
-    public static List<Long> filterRRByChange(List<Long> rrIntervals, double changeThreshold) {
+    private static List<Long> filterRRByChange(List<Long> rrIntervals, double changeThreshold) {
         if (rrIntervals == null){
             return null;
         }
@@ -358,7 +364,7 @@ class HeartRateAnalyzer implements ImageAnalysis.Analyzer {
      * @param rrIntervals 心跳间隔数组，单位：毫秒
      * @return SDNN 值（毫秒）
      */
-    public static int calculateSDNN(List<Long> rrIntervals) {
+    private static int calculateSDNN(List<Long> rrIntervals) {
         if (rrIntervals == null || rrIntervals.isEmpty()) {
             return 0;
         }
@@ -386,7 +392,7 @@ class HeartRateAnalyzer implements ImageAnalysis.Analyzer {
      * @param rrIntervals 心跳间隔数组，单位：毫秒
      * @return RMSSD 值（毫秒）
      */
-    public static int calculateRMSSD(List<Long> rrIntervals) {
+    private static int calculateRMSSD(List<Long> rrIntervals) {
         if (rrIntervals == null || rrIntervals.size() < 2) {
             return 0;
         }

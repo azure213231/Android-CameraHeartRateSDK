@@ -2,6 +2,7 @@ package com.azure.cameraheartratesdk.manager;
 
 import androidx.camera.core.ImageProxy;
 
+import com.azure.cameraheartratesdk.analyzer.HeartRateAnalyzer;
 import com.azure.cameraheartratesdk.listener.CameraHeartRateListener;
 
 public class CameraHeartRateManager {

@@ -34,6 +34,12 @@
             android:text="finger_detected"/>
 
         <TextView
+            android:id="@+id/effective_value"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="effective_value"/>
+
+        <TextView
             android:id="@+id/heart_rate"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"

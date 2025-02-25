@@ -30,17 +30,12 @@ public class MainActivity extends AppCompatActivity {
 
     private PreviewView previewView;
     private TextView fingerDetectedTextView;
+    private TextView effectiveValueTextView;
     private TextView heartRateTextView;
     private TextView sdnnTextView;
     private TextView rmssdTextView;
 
     private CameraHeartRateListener cameraHeartRateListener = new CameraHeartRateListener() {
-        @Override
-        public void onFingerDetected(boolean fingerDetected) {
-            String text = "fingerDetected: " + fingerDetected;
-            fingerDetectedTextView.setText(text);
-        }
-
         @Override
         public void onHeartRate(int heartRate) {
             String text = "heartRate: " + heartRate;
@@ -58,6 +53,18 @@ public class MainActivity extends AppCompatActivity {
             String text = "rmssd: " + rmssd;
             rmssdTextView.setText(text);
         }
+
+        @Override
+        public void onFingerDetected(boolean fingerDetected) {
+            String text = "fingerDetected: " + fingerDetected;
+            fingerDetectedTextView.setText(text);
+        }
+
+        @Override
+        public void onEffectiveValueRate(float hrEffective, float hrvEffective) {
+            String text = "hrEffective: " + hrEffective + ", hrvEffective: " + hrvEffective;
+            effectiveValueTextView.setText(text);
+        }
     };
 
     @Override
@@ -73,11 +80,13 @@ public class MainActivity extends AppCompatActivity {
 
         previewView = findViewById(R.id.previewView);
         fingerDetectedTextView  = findViewById(R.id.finger_detected);
+        effectiveValueTextView  = findViewById(R.id.effective_value);
         heartRateTextView  = findViewById(R.id.heart_rate);
         sdnnTextView  = findViewById(R.id.sdnn);
         rmssdTextView  = findViewById(R.id.rmssd);
         CameraHeartRateManager.getInstance().init();
         CameraHeartRateManager.getInstance().addCameraHeartRateListener(cameraHeartRateListener);
+
 
         startCamera();
     }

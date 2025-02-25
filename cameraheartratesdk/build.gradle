@@ -9,15 +9,18 @@ android {
     defaultConfig {
         minSdk 24
         targetSdk 34
-        versionCode 4
-        versionName "1.1.0"
+        versionCode 5
+        versionName "1.1.1"
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
     }
 
     buildTypes {
+        debug {
+            minifyEnabled false  // 禁用混淆
+        }
         release {
-            minifyEnabled false
+            minifyEnabled true
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
     }
