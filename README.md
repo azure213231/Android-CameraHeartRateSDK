@@ -19,7 +19,7 @@ CameraHeartRateManager.getInstance().init();
 在监测心率页面销毁时进行反初始化
 
 ```
-CameraHeartRateManager.getInstance().init();
+CameraHeartRateManager.getInstance().unInit();
 ```
 
 
